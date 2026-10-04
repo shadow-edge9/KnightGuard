@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>SafeChat</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <div class="chat-container">
+
+        <div class="chat-header">
+            <h1>SafeChat</h1>
+            <p>AI-monitored conversation</p>
+        </div>
+
+        <div id="chat-box" class="chat-box">
+        </div>
+
+        <!-- Safety Alert Popup -->
+        <div id="safety-popup" class="safety-popup">
+
+            <div class="safety-popup-content">
+
+                <h2>⚠️ Safety Alert</h2>
+
+                <p id="safety-message"></p>
+
+                <button onclick="closeSafetyPopup()">
+                    Dismiss
+                </button>
+
+            </div>
+
+        </div>
+
+        <div class="input-area">
+
+            <select id="sender">
+                <option value="A">Person A</option>
+                <option value="B">Person B</option>
+                <option value="AI">AI</option>
+            </select>
+
+            <input
+                type="text"
+                id="message-input"
+                placeholder="Type a message..."
+            >
+
+            <button onclick="sendMessage()">
+                Send
+            </button>
+
+        </div>
+
+    </div>
+
+    <script src="script.js"></script>
+
+</body>
+
+</html>
