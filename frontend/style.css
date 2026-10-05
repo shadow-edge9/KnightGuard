@@ -206,3 +206,54 @@ button:hover {
 .safety-popup-content button:hover {
     background: #110139;
 }
+/* ========================= */
+/* SAFETY EXPLAINABILITY     */
+/* ========================= */
+
+.safety-info {
+    margin: 10px 0 16px 0;
+    padding: 12px 14px;
+
+    background: #fff4e5;
+    border-left: 4px solid #e69500;
+
+    border-radius: 8px;
+
+    font-size: 13px;
+    line-height: 1.6;
+
+    color: #333;
+}
+
+
+/* ========================= */
+/* PRIVACY STATUS            */
+/* ========================= */
+
+.privacy-info {
+    margin: 10px 0 16px 0;
+    padding: 12px 14px;
+
+    background: #eef7ff;
+    border-left: 4px solid #2962ff;
+
+    border-radius: 8px;
+
+    font-size: 13px;
+    line-height: 1.6;
+
+    color: #222;
+}
+
+.safety-info strong,
+.privacy-info strong {
+    font-weight: 700;
+}
+
+.safety-popup-content {
+    width: 380px;
+}
+
+.safety-popup-content p {
+    text-align: left;
+}
