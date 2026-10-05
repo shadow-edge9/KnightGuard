@@ -121,7 +121,37 @@ async function sendMessage() {
 
             chatBox.appendChild(privacyInfo);
         }
+// -----------------------------
+// Sarvam language normalization
+// -----------------------------
 
+if (
+    data.language &&
+    data.language.normalization_used
+) {
+    const languageInfo =
+        document.createElement("div");
+
+    languageInfo.className = "privacy-info";
+
+    const sourceLanguage =
+        data.language.source_language || "auto-detected";
+
+    languageInfo.innerHTML = `
+        <strong>🌐 Sarvam Language Normalization</strong>
+        <br>
+
+        Source:
+        ${sourceLanguage}
+
+        <br>
+
+        Safety analysis performed on:
+        "${data.language.normalized_for_safety}"
+    `;
+
+    chatBox.appendChild(languageInfo);
+}
 
         // -----------------------------
         // REVIEW / BLOCK popup
