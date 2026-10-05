@@ -2,8 +2,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
-from backend.chatbot import generate_response
-from backend.safety import check_safety, redact_sensitive_data
+from backend.chatbot import (
+    generate_response,
+    normalize_to_english
+)
+
+from backend.safety import (
+    check_safety,
+    redact_sensitive_data
+)
 
 
 app = FastAPI()
@@ -30,48 +37,126 @@ def home():
     }
 
 
+def choose_stronger_result(original_result, normalized_result):
+
+    priority = {
+        "NO_WARNING": 0,
+        "REVIEW": 1,
+        "BLOCK": 2
+    }
+
+    if (
+        priority.get(normalized_result["decision"], 0)
+        > priority.get(original_result["decision"], 0)
+    ):
+        return normalized_result
+
+    return original_result
+
+
 @app.post("/chat")
 def chat(request: ChatRequest):
 
-    # 1. Run safety detection on the original message
-    safety_result = check_safety(request.message)
-
-    response = None
-    redacted_types = []
-    message_sent_to_ai = None
+    original_message = request.message
 
 
-    # 2. BLOCK high-confidence unsafe requests
-    if safety_result["decision"] == "BLOCK":
-        response = None
+    # ------------------------------------------
+    # STEP 1: Local safety check
+    # ------------------------------------------
+
+    original_safety = check_safety(
+        original_message
+    )
 
 
-    # 3. Only AI messages are sent to Sarvam
-    elif request.sender == "AI":
+    # ------------------------------------------
+    # STEP 2: Remove PII BEFORE Sarvam
+    # ------------------------------------------
 
-        # Remove obvious personal information BEFORE
-        # sending anything to the external AI API
-        safe_message, redacted_types = redact_sensitive_data(
-            request.message
+    safe_message, redacted_types = (
+        redact_sensitive_data(
+            original_message
+        )
+    )
+
+
+    normalized_message = safe_message
+    source_language = None
+    normalization_used = False
+    external_ai_used = False
+
+
+    # ------------------------------------------
+    # STEP 3: Already unsafe?
+    # Don't send to external API
+    # ------------------------------------------
+
+    if original_safety["decision"] == "BLOCK":
+
+        safety_result = original_safety
+
+
+    else:
+
+        # --------------------------------------
+        # STEP 4: Sarvam language normalization
+        # Hinglish / Indic -> English
+        # --------------------------------------
+
+        (
+            normalized_message,
+            source_language,
+            normalization_used
+        ) = normalize_to_english(
+            safe_message
         )
 
-        message_sent_to_ai = safe_message
+        # Translation call uses external AI
+        if safe_message and len(safe_message) <= 1000:
+            external_ai_used = True
+
+
+        # Safety check on normalized text
+        normalized_safety = check_safety(
+            normalized_message
+        )
+
+
+        # Keep more serious result
+        safety_result = choose_stronger_result(
+            original_safety,
+            normalized_safety
+        )
+
+
+    response = None
+
+
+    # ------------------------------------------
+    # STEP 5: AI chatbot response
+    # ------------------------------------------
+
+    if (
+        request.sender == "AI"
+        and safety_result["decision"] != "BLOCK"
+    ):
 
         response = generate_response(
             safe_message
         )
 
+        external_ai_used = True
 
-    # Person A / Person B messages are NOT sent to Sarvam
-    else:
-        response = None
 
+    # ------------------------------------------
+    # STEP 6: Return result
+    # ------------------------------------------
 
     return {
+
         "sender": request.sender,
 
-        # Original message is returned for local UI display
-        "message": request.message,
+        "message": original_message,
 
         "response": response,
 
@@ -79,20 +164,46 @@ def chat(request: ChatRequest):
 
         "alert": (
             safety_result["warning"]
-            if safety_result["decision"] in ["REVIEW", "BLOCK"]
+            if safety_result["decision"]
+            in ["REVIEW", "BLOCK"]
             else None
         ),
 
-        # Privacy information for explainability
+
+        # Privacy information
         "privacy": {
-            "external_ai_used": request.sender == "AI"
-            and safety_result["decision"] != "BLOCK",
 
-            "redaction_applied": len(redacted_types) > 0,
+            "external_ai_used":
+                external_ai_used,
 
-            "redacted_types": redacted_types,
+            "redaction_applied":
+                len(redacted_types) > 0,
 
-            "message_sent_to_ai": message_sent_to_ai
+            "redacted_types":
+                redacted_types,
+
+            "message_sent_to_ai":
+                safe_message
+                if external_ai_used
+                else None,
+
+            "raw_pii_sent_to_external_ai":
+                False
+        },
+
+
+        # Language information
+        "language": {
+
+            "normalization_used":
+                normalization_used,
+
+            "source_language":
+                source_language,
+
+            "normalized_for_safety":
+                normalized_message
+                if normalization_used
+                else None
         }
     }
-    
