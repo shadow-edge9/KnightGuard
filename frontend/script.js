@@ -12,11 +12,9 @@ async function sendMessage() {
     try {
         const response = await fetch("http://127.0.0.1:8000/chat", {
             method: "POST",
-
             headers: {
                 "Content-Type": "application/json"
             },
-
             body: JSON.stringify({
                 sender: sender,
                 message: message
@@ -25,17 +23,21 @@ async function sendMessage() {
 
         const data = await response.json();
 
-        // Show the message in the chat
+        // -----------------------------
+        // Show original message
+        // -----------------------------
         const messageElement = document.createElement("div");
 
         if (sender === "A") {
             messageElement.className = "user-message";
             messageElement.textContent = `Person A: ${message}`;
-        } 
+        }
+
         else if (sender === "B") {
             messageElement.className = "bot-message";
             messageElement.textContent = `Person B: ${message}`;
-        } 
+        }
+
         else {
             messageElement.className = "user-message";
             messageElement.textContent = `You: ${message}`;
@@ -44,44 +46,150 @@ async function sendMessage() {
         chatBox.appendChild(messageElement);
 
 
-        // If AI is selected, show its response
+        // -----------------------------
+        // Show AI response
+        // -----------------------------
         if (sender === "AI" && data.response) {
-
             const aiResponse = document.createElement("div");
 
             aiResponse.className = "bot-message";
-
             aiResponse.textContent = `AI: ${data.response}`;
 
             chatBox.appendChild(aiResponse);
         }
 
 
-        // Show safety popup
-        if (data.alert) {
+        // -----------------------------
+        // Safety status
+        // -----------------------------
+        if (data.safety) {
+            const safetyInfo = document.createElement("div");
 
-            const popup = document.getElementById("safety-popup");
+            safetyInfo.className = "safety-info";
+
+            const confidencePercent =
+                Math.round(data.safety.confidence * 100);
+
+            safetyInfo.innerHTML = `
+                <strong>Safety Decision:</strong>
+                ${data.safety.decision}
+                <br>
+
+                <strong>Risk:</strong>
+                ${data.safety.risk.toUpperCase()}
+                <br>
+
+                <strong>Confidence:</strong>
+                ${confidencePercent}%
+                <br>
+
+                <strong>Reason:</strong>
+                ${data.safety.reason}
+            `;
+
+            chatBox.appendChild(safetyInfo);
+        }
+
+
+        // -----------------------------
+        // Privacy status
+        // -----------------------------
+        if (
+            data.privacy &&
+            data.privacy.external_ai_used
+        ) {
+            const privacyInfo = document.createElement("div");
+
+            privacyInfo.className = "privacy-info";
+
+            if (data.privacy.redaction_applied) {
+                privacyInfo.innerHTML = `
+                    <strong>🔒 Privacy Protection Applied</strong>
+                    <br>
+                    Removed before external AI:
+                    ${data.privacy.redacted_types.join(", ")}
+                `;
+            }
+
+            else {
+                privacyInfo.innerHTML = `
+                    <strong>🔒 Privacy Check</strong>
+                    <br>
+                    No configured personal identifiers detected.
+                `;
+            }
+
+            chatBox.appendChild(privacyInfo);
+        }
+
+
+        // -----------------------------
+        // REVIEW / BLOCK popup
+        // -----------------------------
+        if (data.alert) {
+            const popup =
+                document.getElementById("safety-popup");
 
             const popupMessage =
                 document.getElementById("safety-message");
 
-            popupMessage.textContent = data.alert;
+            const confidencePercent =
+                Math.round(data.safety.confidence * 100);
+
+            popupMessage.innerHTML = `
+                ${data.alert}
+                <br><br>
+
+                <strong>Decision:</strong>
+                ${data.safety.decision}
+                <br>
+
+                <strong>Confidence:</strong>
+                ${confidencePercent}%
+                <br>
+
+                <strong>Reason:</strong>
+                ${data.safety.reason}
+            `;
 
             popup.classList.add("show");
+        }
+
+
+        // -----------------------------
+        // Special message if blocked
+        // -----------------------------
+        if (
+            sender === "AI" &&
+            data.safety &&
+            data.safety.decision === "BLOCK"
+        ) {
+            const blockedMessage =
+                document.createElement("div");
+
+            blockedMessage.className = "safety-info";
+
+            blockedMessage.textContent =
+                "⛔ Message blocked before being sent to the external AI.";
+
+            chatBox.appendChild(blockedMessage);
         }
 
 
         // Clear input
         input.value = "";
 
-        // Keep chat scrolled to the bottom
-        chatBox.scrollTop = chatBox.scrollHeight;
+        // Scroll down
+        chatBox.scrollTop =
+            chatBox.scrollHeight;
 
-    } catch (error) {
+    }
 
+    catch (error) {
         console.error("Error:", error);
 
-        const popup = document.getElementById("safety-popup");
+        const popup =
+            document.getElementById("safety-popup");
 
         const popupMessage =
             document.getElementById("safety-message");
@@ -94,10 +202,12 @@ async function sendMessage() {
 }
 
 
+// -----------------------------
 // Close safety popup
+// -----------------------------
 function closeSafetyPopup() {
-
-    const popup = document.getElementById("safety-popup");
+    const popup =
+        document.getElementById("safety-popup");
 
     popup.classList.remove("show");
 }
